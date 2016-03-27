@@ -95,7 +95,7 @@ public class AssistiveView extends View {
 				Log.d(TAG, "------Down--------");
 				break;
 			case MotionEvent.ACTION_MOVE:
-				//Log.d(TAG, "------Move--------" + x + " , " + y);
+				Log.d(TAG, "------Move--------" + x + " , " + y);
 				break;
 			case MotionEvent.ACTION_UP:
 				Log.d(TAG, "------Up--------");
