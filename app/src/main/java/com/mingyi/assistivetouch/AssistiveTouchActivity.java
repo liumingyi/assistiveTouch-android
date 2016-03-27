@@ -29,7 +29,7 @@ public class AssistiveTouchActivity extends Activity {
 				new Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, Uri.parse("package:" + getPackageName()));
 			startActivityForResult(intent, OVERLAY_PERMISSION_REQ_CODE);
 		} else {
-			startAssistiveTouchService();
+			createAssistiveTouchView();
 		}
 	}
 
@@ -40,12 +40,12 @@ public class AssistiveTouchActivity extends Activity {
 				// SYSTEM_ALERT_WINDOW permission not granted...
 				Log.e(TAG, "----------not granted-------------");
 			} else {
-				startAssistiveTouchService();
+				createAssistiveTouchView();
 			}
 		}
 	}
 
-	private void startAssistiveTouchService() {
+	private void createAssistiveTouchView() {
 		new AssistiveView(this);
 		finish();
 	}
