@@ -46,8 +46,7 @@ public class AssistiveTouchActivity extends Activity {
 	}
 
 	private void startAssistiveTouchService() {
-		Intent intent = new Intent(AssistiveTouchActivity.this, AssistiveTouchService.class);
-		startService(intent);
+		new AssistiveView(this);
 		finish();
 	}
 }

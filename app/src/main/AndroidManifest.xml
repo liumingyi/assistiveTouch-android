@@ -22,9 +22,6 @@
 			</intent-filter>
 		</activity>
 
-		<service
-			android:name=".AssistiveTouchService"/>
-
 	</application>
 
 
