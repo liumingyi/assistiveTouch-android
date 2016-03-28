@@ -1,11 +1,13 @@
 package com.mingyi.assistivetouch;
 
+import android.app.Instrumentation;
 import android.content.Context;
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
 import android.graphics.PixelFormat;
 import android.graphics.Point;
+import android.os.SystemClock;
 import android.support.v4.view.GestureDetectorCompat;
 import android.util.AttributeSet;
 import android.util.Log;
@@ -40,7 +42,10 @@ public class AssistiveView extends View {
 	boolean isLongPressed;
 
 	WindowManager windowManager;
-	WindowManager.LayoutParams params;
+	WindowManager.LayoutParams touchParams;
+
+	MouseView mouseView;
+	WindowManager.LayoutParams mouseParams;
 
 	GestureDetectorCompat gestureDetector;
 	GestureDetector.SimpleOnGestureListener gestureListener = new GestureDetector.SimpleOnGestureListener() {
@@ -54,6 +59,7 @@ public class AssistiveView extends View {
 			Log.d(TAG, "Gesture >> LongPress ----> 标记状态 ----> 下一个Up触发点击");
 			super.onLongPress(e);
 			isLongPressed = true;
+			windowManager.addView(mouseView, mouseParams);
 			invalidate();
 		}
 	};
@@ -74,31 +80,23 @@ public class AssistiveView extends View {
 	}
 
 	private void init(Context context) {
-		initWindowManager(context);
+		initViews(context);
 		initGestureDetector(context);
 		initPaints();
 	}
 
-	private void initWindowManager(Context context) {
+	private void initViews(Context context) {
 		windowManager = (WindowManager) context.getSystemService(Context.WINDOW_SERVICE);
 
-		//Display display = windowManager.getDefaultDisplay();
-		//Point point = new Point();
-		//display.getSize(point);
-		//screenWidth = point.x;
-		//screenHeight = point.y;
-		//Log.d(TAG, "Screen --> w : " + point.x + " , h : " + point.y);
+		touchParams = new WindowManager.LayoutParams();
+		touchParams.gravity = Gravity.TOP | Gravity.START;
+		touchParams.type = WindowManager.LayoutParams.TYPE_SYSTEM_ALERT;
+		touchParams.format = PixelFormat.TRANSLUCENT;
+		touchParams.flags |= WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE;
+		touchParams.alpha = 0.6f;
 
-		params = new WindowManager.LayoutParams();
-		params.gravity = Gravity.TOP | Gravity.START;
-		params.type = WindowManager.LayoutParams.TYPE_SYSTEM_ALERT;// 系统提示window
-		params.format = PixelFormat.TRANSLUCENT;// 支持透明
-		params.flags |= WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE;// 焦点
-		params.alpha = 0.6f;//窗口的透明度
-
-		// FIXME: 3/28/16 改为pd
-		width = params.width = 160;//窗口的宽和高
-		height = params.height = 160;
+		width = touchParams.width = 160;
+		height = touchParams.height = 160;
 
 		statusBarHeight = getStatusBarHeight();
 		center.x = width / 2;
@@ -106,9 +104,24 @@ public class AssistiveView extends View {
 		normalRadius = (int) (width / 2 * 0.8);
 		pressedRadius = width / 2;
 
-		//params.x = calculateOffsetX(0, point.x);//窗口位置的偏移量
-		//params.y = calculateOffsetY(0, point.y);
-		windowManager.addView(this, params);
+		//可利用偏移量设置初始位置
+		//touchParams.x = calculateOffsetX(0, point.x);
+		//touchParams.y = calculateOffsetY(0, point.y);
+		windowManager.addView(this, touchParams);
+
+		createMouseView(context);
+	}
+
+	private void createMouseView(Context context) {
+		mouseParams = new WindowManager.LayoutParams();
+		mouseParams.gravity = Gravity.TOP | Gravity.START;
+		mouseParams.type = WindowManager.LayoutParams.TYPE_SYSTEM_ALERT;// 系统提示window
+		mouseParams.format = PixelFormat.TRANSLUCENT;
+		mouseParams.flags |= WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE;
+		mouseParams.alpha = 0.6f;
+		mouseParams.width = 60;
+		mouseParams.height = 60;
+		mouseView = new MouseView(context);
 	}
 
 	private void initGestureDetector(Context context) {
@@ -136,25 +149,21 @@ public class AssistiveView extends View {
 		return initialX + screenWidth / 2;
 	}
 
-	// TODO: 3/28/16
 	private int calculateOffsetY(int initialY, int screenHeight) {
-		// FIXME: 3/28/16 72
 		return initialY + (screenHeight - statusBarHeight - height) / 2;
 	}
 
 	@Override protected void onDraw(Canvas canvas) {
-		Log.d(TAG, "==== onDraw = " + width + " , " + height);
 		if (isLongPressed) {
 			canvas.drawCircle(center.x, center.y, pressedRadius, blackPaint);
 		}
 		canvas.drawCircle(center.x, center.y, normalRadius, paint);
 	}
 
-	int lastX;
-	int lastY;
-	int startX;
-	int startY;
-	//boolean touchConsumedByMove = false;
+	private int lastX;
+	private int lastY;
+	private int startX;
+	private int startY;
 
 	@Override public boolean onTouchEvent(MotionEvent event) {
 		int x = (int) event.getRawX();
@@ -170,25 +179,29 @@ public class AssistiveView extends View {
 				int offsetY = y - lastY;
 				lastX = x;
 				lastY = y;
-				params.x += offsetX;
-				params.y += offsetY;
-				windowManager.updateViewLayout(this, params);
-				//if (Math.abs(lastX - startX) >= 5 || Math.abs(lastY - startY) >= 5) {
-				//	if (event.getPointerCount() == 1) {
-				//		params.x += offsetX;
-				//		params.y += offsetY;
-				//		touchConsumedByMove = true;
-				//		windowManager.updateViewLayout(this, params);
-				//	} else {
-				//		touchConsumedByMove = false;
-				//	}
-				//} else {
-				//	touchConsumedByMove = false;
-				//}
+				//touchParams.x += offsetX;
+				//touchParams.y += offsetY;
+				if (Math.abs(lastX - startX) >= 5 || Math.abs(lastY - startY) >= 5) {
+					if (event.getPointerCount() == 1) {
+						touchParams.x += offsetX;
+						touchParams.y += offsetY;
+						windowManager.updateViewLayout(this, touchParams);
+					}
+				}
+				windowManager.updateViewLayout(this, touchParams);
+
+				if (isLongPressed) {
+					mouseParams.x += offsetX * 8;
+					mouseParams.y += offsetY * 8;
+					windowManager.updateViewLayout(mouseView, mouseParams);
+				}
 				break;
 			case MotionEvent.ACTION_UP:
 				if (isLongPressed) {
 					isLongPressed = false;
+					// FIXME: 3/29/16 not work
+					//dispatchMouseClickEvent2();
+					removeMouseView();
 					invalidate();
 				}
 				break;
@@ -196,8 +209,40 @@ public class AssistiveView extends View {
 		return gestureDetector.onTouchEvent(event);
 	}
 
-	@Override public boolean callOnClick() {
-		Log.d(TAG, "callOnClick");
-		return false;
+	private void dispatchMouseClickEvent() {
+		Log.d(TAG, "-performClick------------");
+		long downTime = SystemClock.uptimeMillis();
+		long eventTime = SystemClock.uptimeMillis() + 100;
+		float x = 0.0f;
+		float y = 0.0f;
+		// List of meta states found here: developer.android.com/reference/android/view/KeyEvent.html#getMetaState()
+		int metaState = 0;
+		MotionEvent eventDown = MotionEvent.obtain(downTime, eventTime, MotionEvent.ACTION_DOWN, x, y, metaState);
+		mouseView.dispatchTouchEvent(eventDown);
+		MotionEvent eventUp = MotionEvent.obtain(downTime, eventTime, MotionEvent.ACTION_UP, x, y, metaState);
+		// Dispatch touch event to view
+		mouseView.dispatchTouchEvent(eventUp);
+		eventDown.recycle();
+		eventUp.recycle();
+	}
+
+	private void dispatchMouseClickEvent2() {
+		new Thread(new Runnable() {
+			@Override public void run() {
+				Instrumentation inst = new Instrumentation();
+				inst.sendPointerSync(
+					MotionEvent.obtain(SystemClock.uptimeMillis(), SystemClock.uptimeMillis(), MotionEvent.ACTION_DOWN,
+						200, 500, 0));
+				inst.sendPointerSync(
+					MotionEvent.obtain(SystemClock.uptimeMillis(), SystemClock.uptimeMillis(), MotionEvent.ACTION_UP,
+						200, 500, 0));
+			}
+		}).start();
+	}
+
+	private void removeMouseView() {
+		mouseParams.x = 0;
+		mouseParams.y = 0;
+		windowManager.removeViewImmediate(mouseView);
 	}
 }

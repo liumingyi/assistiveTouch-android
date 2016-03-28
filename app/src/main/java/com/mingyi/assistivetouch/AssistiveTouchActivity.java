@@ -11,7 +11,7 @@ import android.util.Log;
 
 public class AssistiveTouchActivity extends Activity {
 
-	private static final String TAG = "AssistiveTouch";
+	private static final String TAG = "AssistiveTouchActivity";
 
 	public static int OVERLAY_PERMISSION_REQ_CODE = 1234;
 
@@ -29,7 +29,7 @@ public class AssistiveTouchActivity extends Activity {
 				new Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, Uri.parse("package:" + getPackageName()));
 			startActivityForResult(intent, OVERLAY_PERMISSION_REQ_CODE);
 		} else {
-			createAssistiveTouchView();
+			startAssistiveTouchService();
 		}
 	}
 
@@ -40,13 +40,13 @@ public class AssistiveTouchActivity extends Activity {
 				// SYSTEM_ALERT_WINDOW permission not granted...
 				Log.e(TAG, "----------not granted-------------");
 			} else {
-				createAssistiveTouchView();
+				startAssistiveTouchService();
 			}
 		}
 	}
 
-	private void createAssistiveTouchView() {
-		new AssistiveView(this);
+	private void startAssistiveTouchService() {
+		startService(new Intent(AssistiveTouchActivity.this, AssistiveTouchService.class));
 		finish();
 	}
 }
