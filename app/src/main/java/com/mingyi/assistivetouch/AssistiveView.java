@@ -10,6 +10,7 @@ import android.support.v4.view.GestureDetectorCompat;
 import android.util.AttributeSet;
 import android.util.Log;
 import android.view.GestureDetector;
+import android.view.Gravity;
 import android.view.MotionEvent;
 import android.view.View;
 import android.view.WindowManager;
@@ -29,11 +30,12 @@ public class AssistiveView extends View {
 
 	int width;
 	int height;
+	int statusBarHeight;
 	int normalRadius;
 	int pressedRadius;
 
-	int initialX;
-	int initialY;
+	int initialX = 0;
+	int initialY = 0;
 
 	boolean isLongPressed;
 
@@ -79,16 +81,33 @@ public class AssistiveView extends View {
 
 	private void initWindowManager(Context context) {
 		windowManager = (WindowManager) context.getSystemService(Context.WINDOW_SERVICE);
+
+		//Display display = windowManager.getDefaultDisplay();
+		//Point point = new Point();
+		//display.getSize(point);
+		//screenWidth = point.x;
+		//screenHeight = point.y;
+		//Log.d(TAG, "Screen --> w : " + point.x + " , h : " + point.y);
+
 		params = new WindowManager.LayoutParams();
+		params.gravity = Gravity.TOP | Gravity.START;
 		params.type = WindowManager.LayoutParams.TYPE_SYSTEM_ALERT;// 系统提示window
 		params.format = PixelFormat.TRANSLUCENT;// 支持透明
 		params.flags |= WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE;// 焦点
-		// FIXME: 3/28/16 改为pd
-		params.width = 160;//窗口的宽和高
-		params.height = 160;
-		params.x = calculateOffsetX(0);//窗口位置的偏移量
-		params.y = calculateOffsetY(0);
 		params.alpha = 0.6f;//窗口的透明度
+
+		// FIXME: 3/28/16 改为pd
+		width = params.width = 160;//窗口的宽和高
+		height = params.height = 160;
+
+		statusBarHeight = getStatusBarHeight();
+		center.x = width / 2;
+		center.y = height / 2;
+		normalRadius = (int) (width / 2 * 0.8);
+		pressedRadius = width / 2;
+
+		//params.x = calculateOffsetX(0, point.x);//窗口位置的偏移量
+		//params.y = calculateOffsetY(0, point.y);
 		windowManager.addView(this, params);
 	}
 
@@ -104,26 +123,23 @@ public class AssistiveView extends View {
 		blackPaint.setColor(Color.BLACK);
 	}
 
-	private int calculateOffsetX(int initialX) {
-		return 0;
-	}
-
-	private int calculateOffsetY(int initialY) {
-		return 0;
-	}
-
-	@Override protected void onMeasure(int widthMeasureSpec, int heightMeasureSpec) {
-		if (height == 0 || width == 0) {
-			height = getMeasuredHeight();
-			width = getMeasuredWidth();
-			center.x = width / 2;
-			center.y = height / 2;
-			normalRadius = (int) (width / 2 * 0.8);
-			pressedRadius = width / 2;
-			invalidate();
+	public int getStatusBarHeight() {
+		int result = 0;
+		int resourceId = getResources().getIdentifier("status_bar_height", "dimen", "android");
+		if (resourceId > 0) {
+			result = getResources().getDimensionPixelSize(resourceId);
 		}
-		Log.d(TAG, "onMeasure >>> " + width + " , " + height);
-		super.onMeasure(widthMeasureSpec, heightMeasureSpec);
+		return result;
+	}
+
+	private int calculateOffsetX(int initialX, int screenWidth) {
+		return initialX + screenWidth / 2;
+	}
+
+	// TODO: 3/28/16
+	private int calculateOffsetY(int initialY, int screenHeight) {
+		// FIXME: 3/28/16 72
+		return initialY + (screenHeight - statusBarHeight - height) / 2;
 	}
 
 	@Override protected void onDraw(Canvas canvas) {
@@ -134,21 +150,43 @@ public class AssistiveView extends View {
 		canvas.drawCircle(center.x, center.y, normalRadius, paint);
 	}
 
+	int lastX;
+	int lastY;
+	int startX;
+	int startY;
+	//boolean touchConsumedByMove = false;
+
 	@Override public boolean onTouchEvent(MotionEvent event) {
-		int x = (int) event.getX();
-		int y = (int) event.getY();
+		int x = (int) event.getRawX();
+		int y = (int) event.getRawY();
+		//Log.d(TAG, "touch >>> " + x + " , " + y + " ------ " + event.getX() + " , " + event.getY());
 		switch (event.getAction()) {
 			case MotionEvent.ACTION_DOWN:
-				Log.d(TAG, "-Down--------" + x + " , " + y);
+				startX = lastX = x;
+				startY = lastY = y;
 				break;
 			case MotionEvent.ACTION_MOVE:
-				Log.d(TAG, "-Move--------" + x + " , " + y);
-				params.x = x;
-				params.y = y;
+				int offsetX = x - lastX;
+				int offsetY = y - lastY;
+				lastX = x;
+				lastY = y;
+				params.x += offsetX;
+				params.y += offsetY;
 				windowManager.updateViewLayout(this, params);
+				//if (Math.abs(lastX - startX) >= 5 || Math.abs(lastY - startY) >= 5) {
+				//	if (event.getPointerCount() == 1) {
+				//		params.x += offsetX;
+				//		params.y += offsetY;
+				//		touchConsumedByMove = true;
+				//		windowManager.updateViewLayout(this, params);
+				//	} else {
+				//		touchConsumedByMove = false;
+				//	}
+				//} else {
+				//	touchConsumedByMove = false;
+				//}
 				break;
 			case MotionEvent.ACTION_UP:
-				Log.d(TAG, "-Up--------" + x + " , " + y);
 				if (isLongPressed) {
 					isLongPressed = false;
 					invalidate();
