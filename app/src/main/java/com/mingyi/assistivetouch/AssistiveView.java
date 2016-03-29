@@ -17,6 +17,8 @@ import android.view.Gravity;
 import android.view.MotionEvent;
 import android.view.View;
 import android.view.WindowManager;
+import java.io.DataOutputStream;
+import java.io.OutputStream;
 
 /**
  * assistiveTouch控件
@@ -54,6 +56,11 @@ public class AssistiveView extends View {
 		@Override public boolean onSingleTapUp(MotionEvent e) {
 			Log.d(TAG, "Gesture >> SingleTapUp -----> 展开动画");
 			//toggleDesk();
+			//boolean isAdmin = devicePolicyManager.isAdminActive(mComponentName);
+			//if (isAdmin) {
+			//	devicePolicyManager.lockNow();
+			//}
+			//execShellCmd("input tap " + e.getRawX() + " " + e.getRawY());
 			return super.onSingleTapUp(e);
 		}
 
@@ -66,9 +73,14 @@ public class AssistiveView extends View {
 		}
 	};
 
+	//private DevicePolicyManager devicePolicyManager;
+	//ComponentName mComponentName;
+
 	public AssistiveView(Context context) {
 		super(context);
 		init(context);
+		//devicePolicyManager = (DevicePolicyManager) context.getSystemService(Context.DEVICE_POLICY_SERVICE);
+		//mComponentName = new ComponentName(context, MyAdminReceiver.class);
 	}
 
 	public AssistiveView(Context context, AttributeSet attrs) {
@@ -94,7 +106,7 @@ public class AssistiveView extends View {
 		touchParams.gravity = Gravity.TOP | Gravity.START;
 		touchParams.type = WindowManager.LayoutParams.TYPE_SYSTEM_ALERT;
 		touchParams.format = PixelFormat.TRANSLUCENT;
-		touchParams.flags |= WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE;
+		touchParams.flags |= WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE | WindowManager.LayoutParams.FLAG_FULLSCREEN;
 		touchParams.alpha = 0.6f;
 
 		width = touchParams.width = 160;
@@ -182,7 +194,6 @@ public class AssistiveView extends View {
 	@Override public boolean onTouchEvent(MotionEvent event) {
 		int x = (int) event.getRawX();
 		int y = (int) event.getRawY();
-		//Log.d(TAG, "touch >>> " + x + " , " + y + " ------ " + event.getX() + " , " + event.getY());
 		switch (event.getAction()) {
 			case MotionEvent.ACTION_DOWN:
 				startX = lastX = x;
@@ -193,15 +204,15 @@ public class AssistiveView extends View {
 				int offsetY = y - lastY;
 				lastX = x;
 				lastY = y;
-				//touchParams.x += offsetX;
-				//touchParams.y += offsetY;
-				if (Math.abs(lastX - startX) >= 5 || Math.abs(lastY - startY) >= 5) {
-					if (event.getPointerCount() == 1) {
-						touchParams.x += offsetX;
-						touchParams.y += offsetY;
-						windowManager.updateViewLayout(this, touchParams);
-					}
-				}
+				touchParams.x += offsetX;
+				touchParams.y += offsetY;
+				//if (Math.abs(lastX - startX) >= 5 || Math.abs(lastY - startY) >= 5) {
+				//	if (event.getPointerCount() == 1) {
+				//		touchParams.x += offsetX;
+				//		touchParams.y += offsetY;
+				//		windowManager.updateViewLayout(this, touchParams);
+				//	}
+				//}
 				windowManager.updateViewLayout(this, touchParams);
 
 				if (isLongPressed) {
@@ -230,6 +241,25 @@ public class AssistiveView extends View {
 	}
 
 	/////////////////////////////以下为待处理代码/////////////////////////////////////////////////
+
+	/**
+	 * 执行shell命令
+	 */
+	private void execShellCmd(String cmd) {
+		try {
+			// 申请获取root权限，这一步很重要，不然会没有作用
+			Process process = Runtime.getRuntime().exec("su");
+			// 获取输出流
+			OutputStream outputStream = process.getOutputStream();
+			DataOutputStream dataOutputStream = new DataOutputStream(outputStream);
+			dataOutputStream.writeBytes(cmd);
+			dataOutputStream.flush();
+			dataOutputStream.close();
+			outputStream.close();
+		} catch (Throwable t) {
+			t.printStackTrace();
+		}
+	}
 
 	boolean isOpenDesk;
 	boolean isCloseDesk;

@@ -1,0 +1,6 @@
+<device-admin xmlns:android="schemas.android.com/apk/res/android">
+	<uses-policies>
+		<force-lock />
+		<wipe-data />
+	</uses-policies>
+</device-admin>
