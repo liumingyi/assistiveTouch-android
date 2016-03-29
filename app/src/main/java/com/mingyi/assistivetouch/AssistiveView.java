@@ -11,6 +11,7 @@ import android.os.SystemClock;
 import android.support.v4.view.GestureDetectorCompat;
 import android.util.AttributeSet;
 import android.util.Log;
+import android.view.Display;
 import android.view.GestureDetector;
 import android.view.Gravity;
 import android.view.MotionEvent;
@@ -36,8 +37,8 @@ public class AssistiveView extends View {
 	int normalRadius;
 	int pressedRadius;
 
-	int initialX = 0;
-	int initialY = 0;
+	int screenWidth;
+	int screenHeight;
 
 	boolean isLongPressed;
 
@@ -52,6 +53,7 @@ public class AssistiveView extends View {
 
 		@Override public boolean onSingleTapUp(MotionEvent e) {
 			Log.d(TAG, "Gesture >> SingleTapUp -----> 展开动画");
+			//toggleDesk();
 			return super.onSingleTapUp(e);
 		}
 
@@ -105,8 +107,13 @@ public class AssistiveView extends View {
 		pressedRadius = width / 2;
 
 		//可利用偏移量设置初始位置
+		Display display = windowManager.getDefaultDisplay();
+		Point point = new Point();
+		display.getSize(point);
+		screenWidth = point.x;
+		screenHeight = point.y;
 		//touchParams.x = calculateOffsetX(0, point.x);
-		//touchParams.y = calculateOffsetY(0, point.y);
+		touchParams.y = calculateOffsetY(0);
 		windowManager.addView(this, touchParams);
 
 		createMouseView(context);
@@ -145,15 +152,22 @@ public class AssistiveView extends View {
 		return result;
 	}
 
-	private int calculateOffsetX(int initialX, int screenWidth) {
+	private int calculateOffsetX(int initialX) {
 		return initialX + screenWidth / 2;
 	}
 
-	private int calculateOffsetY(int initialY, int screenHeight) {
+	private int calculateOffsetY(int initialY) {
 		return initialY + (screenHeight - statusBarHeight - height) / 2;
 	}
 
 	@Override protected void onDraw(Canvas canvas) {
+		//changeSize();
+		drawContent(canvas);
+		//update();
+	}
+
+	private void drawContent(Canvas canvas) {
+		//canvas.drawRect(0, 0, touchParams.width, touchParams.height, blackPaint);
 		if (isLongPressed) {
 			canvas.drawCircle(center.x, center.y, pressedRadius, blackPaint);
 		}
@@ -209,6 +223,83 @@ public class AssistiveView extends View {
 		return gestureDetector.onTouchEvent(event);
 	}
 
+	private void removeMouseView() {
+		mouseParams.x = 0;
+		mouseParams.y = 0;
+		windowManager.removeViewImmediate(mouseView);
+	}
+
+	/////////////////////////////以下为待处理代码/////////////////////////////////////////////////
+
+	boolean isOpenDesk;
+	boolean isCloseDesk;
+
+	enum state {
+		OPENNING, OPEN, CLOSING, CLOSE
+	}
+
+	private void changeSize() {
+		if (isOpenDesk) {
+			isOpenDesk = scale(5);
+		} else if (isCloseDesk) {
+			isCloseDesk = scale(-5);
+			if (!isCloseDesk) {
+				resetWindowSize(160);
+			}
+		}
+	}
+
+	private void update() {
+		if (isOpenDesk || isCloseDesk) {
+			invalidate();
+		}
+	}
+
+	// FIXME: 3/29/16
+	private void toggleDesk() {
+		if (touchParams.width == 160) {
+			resetWindowSize(400);
+			isOpenDesk = true;
+		} else {
+
+			isCloseDesk = true;
+		}
+		invalidate();
+	}
+
+	private void resetWindowSize(int size) {
+		touchParams.width = size;
+		touchParams.height = size;
+		pressedRadius = size / 2;
+		windowManager.updateViewLayout(AssistiveView.this, touchParams);
+	}
+
+	private boolean scale(int speed) {
+		center.x += speed;
+		center.y += speed;
+		normalRadius += speed * 0.8f;
+
+		if (center.x > 200) {
+			center.x = 200;
+		}
+		if (center.x < 80) {
+			center.x = 80;
+		}
+		if (center.y > 200) {
+			center.y = 200;
+		}
+		if (center.y < 80) {
+			center.y = 80;
+		}
+		if (normalRadius > 160) {
+			normalRadius = 160;
+		}
+		if (normalRadius < 64) {
+			normalRadius = 64;
+		}
+		return center.x != 200 && center.x != 80;
+	}
+
 	private void dispatchMouseClickEvent() {
 		Log.d(TAG, "-performClick------------");
 		long downTime = SystemClock.uptimeMillis();
@@ -238,11 +329,5 @@ public class AssistiveView extends View {
 						200, 500, 0));
 			}
 		}).start();
-	}
-
-	private void removeMouseView() {
-		mouseParams.x = 0;
-		mouseParams.y = 0;
-		windowManager.removeViewImmediate(mouseView);
 	}
 }
